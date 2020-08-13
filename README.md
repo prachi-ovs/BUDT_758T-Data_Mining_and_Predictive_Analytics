@@ -1,1 +1,1 @@
-# -BUDT_758T-Data_Mining_and_Predictive_Analytics
+Assignment and Lab submissions for the Graduate coursework at the University of Maryland, for the purpose of processing, analyzing, and visualizing data.
