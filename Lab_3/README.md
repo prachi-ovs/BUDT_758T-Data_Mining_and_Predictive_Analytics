@@ -14,7 +14,8 @@ The following packages need to be installed for this lab.
     
 About the data: </br>
     
-    The <i> framinghamHeart.csv </i> data set is used in this lab. The Framingham Heart Study is a long term prospective study of cardiovascular disease among a population of subjects in the community of Framingham, Massachusetts.  </br>
+    The  framinghamHeart.csv data set is used in this lab. The Framingham Heart Study is a long term prospective 
+    study of cardiovascular disease among a population of subjects in the community of Framingham, Massachusetts.  
 
 Data Dictionary: </br>
 ![](Images/Data_dictionary.PNG)<br/>
