@@ -9,6 +9,9 @@ The following packages need to be installed for this lab.
     car
     
 The walmartSales.csv data set is used in this lab. It provides weekly historical sales revenue for 45 Walmart stores (real data). </br>
+Data Dictionary: </br>
+![](Images/Data_dictionary.PNG)<br/>
+
 Some of the taks performed in this lab:
 
     1) Data Exploration
