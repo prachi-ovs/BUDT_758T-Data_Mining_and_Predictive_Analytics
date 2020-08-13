@@ -1,0 +1,370 @@
+---
+title: "R Notebook"
+output:
+  word_document: default
+  pdf_document:
+    latex_engine: xelatex
+  html_notebook: default
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+
+# This chunk shows/hides the code in your final report. When echo = TRUE, the code
+# is shown in the report. When echo = FALSE, the code is hidden from the final report.
+# We would like to see your code, so please leave the setting as is during the course.
+# This chunk will not show up in your reports, so you can safely ignore its existence.
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+The following is your first chunk to start with. Remember, you can add chunks using the menu
+above (Insert -> R) or using the keyboard shortcut Ctrl+Alt+I. A good practice is to use
+different code chunks to answer different questions. You can delete this comment if you like.
+
+Other useful keyboard shortcuts include Alt- for the assignment operator, and Ctrl+Shift+M
+for the pipe operator. You can delete these reminders if you don't want them in your report.
+
+
+```{r}
+setwd("C:/") #Don't forget to set your working directory before you start!
+
+library("tidyverse")
+library("tidymodels")
+library("plotly")
+library("skimr")
+library("caret")
+```
+
+
+```{r}
+dff= read_csv("lab3FraminghamHeart.csv")
+```
+
+```{r}
+colsToFactor <- c('gender', 'education', 'currentSmoker', 'BPMeds', 'prevalentStroke', 'prevalentHyp', 'diabetes')
+```
+
+
+```{r}
+dff <- dff %>%
+  mutate_at(colsToFactor, ~factor(.))
+```
+
+
+```{r}
+str(dff)
+```
+Question 1) 
+#sysBP Boxplot
+```{r}
+plot1 <- dff %>%  
+  ggplot(aes(x= TenYearCHD, y=sysBP, group= TenYearCHD)) + 
+  geom_boxplot()
+
+plot1
+
+```
+#diaBP Boxplot
+```{r}
+plot2 <- dff %>%  
+  ggplot(aes(x= TenYearCHD, y=diaBP, group= TenYearCHD)) + 
+  geom_boxplot()
+
+ plot2
+```
+#totChol Boxplot
+```{r}
+plot3 <- dff %>%  
+  ggplot(aes(x= TenYearCHD, y=totChol, group= TenYearCHD)) + 
+  geom_boxplot()
+ 
+
+plot3
+```
+Question 2) (i)
+```{r}
+set.seed(123)
+
+dffTrain <- dff %>%  sample_frac(0.7)
+dffTest <- dplyr::setdiff(dff,dffTrain)
+```
+
+Question 2) (ii) 
+```{r}
+#Gender
+dffTrain %>% group_by(gender) %>%
+  tally() %>% 
+  mutate(pct = 100*n/sum(n))
+
+```
+
+```{r}
+#Gender
+dffTest %>% group_by(gender) %>%
+  tally() %>% 
+  mutate(pct = 100*n/sum(n))
+```
+
+
+```{r}
+#AgeGroup
+dffTrain %>% group_by( ageGroup=cut_interval(age, length=10)) %>%
+  tally() %>% 
+  mutate(pct = 100*n/sum(n))
+```
+
+
+```{r}
+#AgeGroup
+dffTest %>% group_by( ageGroup=cut_interval(age, length=10)) %>%
+  tally() %>% 
+  mutate(pct = 100*n/sum(n))
+
+```
+#Histogram
+```{r}
+plot4 <- dffTrain %>% 
+  ggplot(aes(x=age, fill=gender)) +
+  geom_histogram(color='black')
+
+plot4
+
+```
+
+Question 3)
+```{r}
+fitLPM <- lm(TenYearCHD ~., data= dffTrain)
+summary(fitLPM)
+```
+
+# By logic:  currentSmoker and cigsPerDay are collinear can if cigsPerDay >0 then person is a smoker
+# By analysis: Using VIF 
+```{r}
+car::vif(fitLPM)
+```
+
+#Correct model will not have both cigsPerDay and currentSmoker variables. 
+# The new model can be made now
+```{r}
+newfitLPM <- lm(TenYearCHD ~. -currentSmoker, data= dffTrain)
+summary(newfitLPM)
+```
+```{r}
+plot(newfitLPM)
+```
+
+Question 4)
+```{r}
+resultsLPM <-
+    lm( TenYearCHD ~. -currentSmoker, data= dffTrain ) %>%
+    predict(., dffTest) %>%      
+    bind_cols(dffTest, predictedProb=.) %>%      
+    mutate(predictedClass = ifelse(predictedProb > 0.5, 1, 0))
+resultsLPM
+
+```
+
+```{r}
+#TenYearCHD in Test data
+dffTest %>% group_by(TenYearCHD ) %>%
+  tally() %>% 
+  mutate(pct = 100*n/sum(n))
+```
+
+
+```{r}
+#TenYearCHD in resultsLPM
+resultsLPM %>% group_by(predictedClass ) %>%
+  tally() %>% 
+  mutate(pct = 100*n/sum(n))
+```
+
+```{r}
+#Factoring TenYearCHD in training and test datasets
+
+colsToFactor <- c('TenYearCHD')
+
+dffTrain  <- dffTrain  %>%
+  mutate_at(colsToFactor, ~factor(.))
+dffTrain
+
+dffTest   <- dffTest   %>%
+  mutate_at(colsToFactor, ~factor(.))
+dffTest 
+
+```
+Question 5)
+```{r}
+fitGLM <- glm(TenYearCHD ~. -currentSmoker, family = binomial(), data= dffTrain)
+summary(fitGLM)
+exp(coef(fitGLM))
+
+```
+Question 6)
+```{r}
+
+#predictedClass will need to be defined as a factor 
+
+resultsLog  <-
+    glm(TenYearCHD ~. -currentSmoker, family = binomial(), data= dffTrain ) %>%
+    predict(dffTest, type= 'response') %>%      
+    bind_cols(dffTest, predictedProb=.) %>%      
+    mutate(predictedClass = as.factor(ifelse(predictedProb > 0.5, 1, 0)))
+resultsLog 
+```
+
+```{r}
+resultsLog %>% group_by(predictedClass ) %>%
+  tally() %>% 
+  mutate(pct = 100*n/sum(n))
+```
+
+Question 7)
+```{r}
+resultsLog %>%
+  conf_mat(estimate = predictedClass, truth =TenYearCHD) %>% 
+  autoplot(type = 'heatmap')
+
+```
+Question 8)
+```{r}
+#Age vs predictedClass
+plot5 <- resultsLog %>%  
+  ggplot(aes(x= age, y=predictedProb, color=gender)) + 
+  geom_point() +
+  geom_smooth()+
+  labs(title= "Age vs. Predicted Probability", x= "Age", y= "Predicted Probability")
+
+plot5
+
+```
+
+```{r}
+#cigsPerDay vs predictedClass
+plot6 <- resultsLog %>%  
+  ggplot(aes(x= cigsPerDay, y=predictedProb, color=gender)) + 
+  geom_point() +
+  geom_smooth() +
+  labs(title= "Cigerrates per day vs. Predicted Probability", x= "Cigerrates per day", y= "Predicted Probability")
+
+plot6
+```
+
+
+```{r}
+#totChol vs predictedClass
+plot7 <- resultsLog %>%  
+  ggplot(aes(x= totChol, y=predictedProb, color=gender)) + 
+  geom_point() +
+  geom_smooth() +
+  labs(title= "Total Cholestrol vs. Predicted Probability", x= "Total Cholestrol", y= "Predicted Probability")
+
+plot7
+```
+
+```{r}
+#glucose vs predictedClass
+plot8 <- resultsLog %>%  
+  ggplot(aes(x= glucose, y=predictedProb,color=gender)) + 
+  geom_point() +
+  geom_smooth() +
+  labs(title= "Glucose vs. Predicted Probability", x= "Glucose", y= "Predicted Probability")
+
+plot8
+```
+
+Question 9)
+```{r}
+library(e1071)
+resultsLogCaret  <-
+    train(TenYearCHD ~. -currentSmoker, family = 'binomial', data= dffTrain, method= 'glm' ) %>%
+    predict(dffTest, type= 'raw') %>%      
+    bind_cols(dffTest, predictedClass=.)  
+
+resultsLogCaret
+    
+resultsLogCaret %>% 
+  xtabs(~predictedClass+TenYearCHD, .) %>% 
+  confusionMatrix(positive = '1')
+
+```
+
+Question 10)
+```{r}
+dff1= read_csv("lab3BancoPortugal.csv")
+str(dff1)
+```
+
+```{r}
+#Converting categorical variables to Factors
+colsToFactor <- c('openedAccount', 'newcustomer', 'agegroup', 'job', 'marital', 'education', 'default', 'housing', 'loan', 'contact', 'month', 'day_of_week', 'poutcome')
+dff1 <- dff1 %>%
+  mutate_at(colsToFactor, ~factor(.))
+str(dff1)
+```
+
+
+```{r}
+#Splitting into train and test datasets
+set.seed(123)
+
+dff1Train <- dff1 %>%  sample_frac(0.7)
+dff1Test <- dplyr::setdiff(dff1,dff1Train)
+```
+
+
+```{r}
+# Model 1: glm model
+#Using all variables except duration
+
+bancoDflog <- glm(openedAccount~. -(duration),family='binomial',data=dff1Train)
+summary(bancoDflog)
+
+```
+
+
+```{r}
+#Model 1: Caret
+#Using all variables except duration
+
+bancoDflogCaret  <-
+    train(openedAccount ~. -duration, family = 'binomial', data= dff1Train, method= 'glm' ) %>%
+    predict(dff1Test, type= 'raw') %>%      
+    bind_cols(dff1Test, predictedClass=.)  
+    
+bancoDflogCaret %>% 
+  xtabs(~predictedClass+openedAccount, .) %>% 
+  confusionMatrix(positive = '1')
+
+```
+```{r}
+# Model 2: caret model
+#Applying domain knowledge and statistical analysis
+bancoDflogCaret1  <-
+    train(openedAccount ~. -(duration + marital + euribor3m + newcustomer + contact+ education + loan + day_of_week), family = 'binomial', data= dff1Train, method= 'glm' ) %>%
+    predict(dff1Test, type= 'raw') %>%      
+    bind_cols(dff1Test, predictedClass=.)  
+bancoDflogCaret1 %>% 
+  xtabs(~predictedClass+openedAccount, .) %>% 
+  confusionMatrix(positive = '1')
+
+```
+
+```{r}
+# Model 3: caret model 
+#Using an irrelevant variaable
+
+bancoDflogCaret2  <-
+    train(openedAccount ~ marital, family = 'binomial', data= dff1Train, method= 'glm' ) %>%
+    predict(dff1Test, type= 'raw') %>%      
+    bind_cols(dff1Test, predictedClass=.)  
+    
+bancoDflogCaret2 %>% 
+  xtabs(~predictedClass+openedAccount, .) %>% 
+  confusionMatrix(positive = '1')
+
+```
+
