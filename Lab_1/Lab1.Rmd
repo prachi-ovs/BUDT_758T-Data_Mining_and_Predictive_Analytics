@@ -1,0 +1,314 @@
+---
+title: "Lab 1 - Part B"
+output:
+  html_notebook: default
+  pdf_document:
+    latex_engine: xelatex
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+
+# This chunk shows/hides the code in your final report. When echo = TRUE, the code
+# is shown in the report. When echo = FALSE, the code is hidden from the final report.
+# We would like to see your code, so please leave the setting as is during the course.
+# This chunk will not show up in your reports, so you can safely ignore its existence.
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+The following is your first chunk to start with. Remember, you can add chunks using the menu
+above (Insert -> R) or using the keyboard shortcut Ctrl+Alt+I. A good practice is to use
+different code chunks to answer different questions. You can delete this comment if you like.
+
+Other useful keyboard shortcuts include Alt- for the assignment operator, and Ctrl+Shift+M
+for the pipe operator. You can delete these reminders if you don't want them in your report.
+
+```{r}
+
+#setwd("C:/...")
+
+library("tidyverse")
+library("tidymodels")
+library("plotly")
+library("skimr")
+
+```
+
+### Load the Titanic dataset
+
+```{r}
+
+dfTit <-
+  read_csv("titanic.csv") %>% 
+  rename_all(tolower)
+
+```
+
+**What was in the titanic dataset?**
+
+Variable | Definition    | Key                        | 
+---------|:--------------|:-------------------------- |
+survived |	Survival     |	0 = No, 1 = Yes           |
+class    |	Ticket class |	1 = 1st, 2 = 2nd, 3 = 3rd |
+name	   |  Name         |                            |
+sex	     |  Gender       |                            |
+age      |	Age in years |                            |
+sibsp    |	# of siblings / spouses aboard the Titanic	| |
+parch    |	# of parents / children aboard the Titanic	| |
+ticket   |	Ticket number	|                           |
+fare     |	Passenger fare|                           |
+cabin	   |  Cabin number  |                           |
+embarked |	Port of Embarkation	C = Cherbourg, Q = Queenstown, S = Southampton |         |
+
+  
+
+### Practice the Tidyverse functions   
+
+  
+
+#### Part 1: Arrange
+
+**Q&A**: Sort the Titanic dataset by age from high to low.
+
+```{r}
+
+dfTit %>% 
+  arrange(desc(age))
+
+```
+
+**Q1**: You're looking for a passenger with a last name "Zimmerman." Sort the data in a way to spot her visually in the table.
+
+```{r}
+
+
+
+```
+
+**Q2**: You're looking for the infant twins who boarded the Titanic together. Sort the data in a way to spot them visually in the table.
+
+```{r}
+
+
+
+```
+
+#### Part 2: Select
+
+**Q&A**: Select only the name, age, and survived columns.
+
+```{r}
+
+dfTit %>% 
+  select(name, age, survived)
+
+```
+
+**Q1**: Select all of the columns except the sex column [Hint: Simply use the negative sign!].
+
+```{r}
+
+
+
+```
+
+**Q2**: Keep all of the columns but rearrange them so that class and fare are the first two columns [Hint: There is a shortcut for that!].
+
+```{r}
+
+
+
+```
+
+#### Part 3: Filter
+
+**Q&A**: Filter the dataset to the male passengers who have survived.
+
+```{r}
+
+dfTit %>% 
+  filter(sex == 'male', survived == 1)
+
+```
+
+**Q1**: How many of the survived passengers are older than 35? [Hint: Yes, you can see the number of rows at the bottom, but you can also pipe into nrow() function]
+
+```{r}
+
+
+
+```
+
+**Q2**: Remember the twins from Part 1? Can you use the filter function to find their parent?
+
+```{r}
+
+
+
+```
+
+#### Part 4: Filter within groups
+
+**Q&A**: Filter to the embarkation ports from which at least 100 passengers survived.
+
+```{r}
+
+dfTit %>% 
+  group_by(embarked) %>% 
+  filter(sum(survived) >= 100)
+
+```
+
+**Q1**: Filter to the passenger classes in which the average fare for the tickets is over $20.
+
+```{r}
+
+
+
+```
+
+#### Part 5: Mutate
+
+**Q&A**:Create a new column ageGroup: Children (under 15 years old), Working-age (15-64 years) and Elderly (65 years and older)
+
+```{r}
+
+dfTit %>% 
+  mutate(ageGroup =  ifelse(age<15, "Children", ifelse(age>=15 & age <=64, "Working-age", "Elderly")))
+
+```
+
+**Q1**: Create a new variable called fareCategory which divides the ticket prices into three bins: Low (<20), Medium (20-60), and High (>60) 
+
+```{r}
+
+
+
+```
+
+**Q2**: Add a new variable called familyOnBoard that adds up the number of passengers from one's family including siblings/spouses, parents/children, and oneself. Also sort by your calculated variable in a descending order to find the most crowded family.
+
+```{r}
+
+
+
+```
+
+#### Part 6: Mutate with groups
+
+**Q&A**: Based on whether passengers survived or not, calculate the deviation of the fare from the mean of each group. Save it to fareDeviation variable. Because you are interested in deviation in absolute terms, use take the absolute value.
+
+```{r}
+
+dfTit %>% 
+  group_by(survived) %>%
+  mutate(fareDeviation = abs(fare - mean(fare))) %>%
+  ungroup()
+
+```
+
+**Q1**: Create a new variable indicating the number of people who are on the same ticket [Hint: Group by the ticket number and use n() function to get the counts].
+
+```{r}
+
+
+
+```
+
+#### Part 7: Summarize
+
+**Q&A**: Use the summarize command to find the mean age for all passengers.
+
+```{r}
+
+dfTit %>% 
+  summarize(meanAge = mean(age, na.rm=TRUE)) # na.rm=TRUE is there to exclude missing values; try removing it and see what happens!
+
+```
+
+**Q1**: Determine the mean fare a passenger paid to get on board the Titanic.
+
+```{r}
+
+
+
+```
+
+#### Part 8: Summarize with groups
+
+**Q&A**: Determine the mean fare of the passengers who survived. Compare it with the ones who did not survive.
+
+```{r}
+
+dfTit %>% 
+  group_by(survived) %>% 
+  summarize(ageBySurvival = mean(age, na.rm=TRUE)) %>%
+  ungroup()
+
+```
+
+**Q1**: What is the minimum and maximum age of the passengers based on whether they survived or not?
+
+```{r}
+
+
+
+```
+
+**Q2**: What is the minimum, maximum, and average fare that passengers of each class paid to get on the ship, based on whether they survived or not?
+
+```{r}
+
+
+
+```
+
+#### Part 9: Combining verbs
+
+**Q&A**: For the survived passengers who were on a first class ticket, find the mean age and fare by gender.
+
+```{r}
+
+dfTit %>% 
+  filter(survived == 1 & pclass == 1) %>% 
+  group_by(sex) %>% 
+  summarize(avgAge = mean(age, na.rm=TRUE), avgFare = mean(fare, na.rm=TRUE)) %>%
+  ungroup()
+
+```
+
+**Q1**: After excluding individual passengers, calculate (i) the total cost per family (based on whether they are on the same ticket), (ii) the number of family members on the same ticket, and (iii) how many of these family members survived. Then, keep only the ticket number and the three variables you calculated, sort by the total cost descending, and remove the repetitions in the table [Hint: Use the distinct() function with ".keep_all = TRUE" option to display the details for each unique ticket].
+ 
+```{r}
+
+
+  
+```
+
+#### Part 10: Visualizations
+
+**Q&A**: Create a plot showing the relationship between age and median fare by age group, and fit a smoothed curve on it (no need to set any parameters, just use the defaults).
+
+```{r}
+
+pAgeAvgFare <- 
+  dfTit %>%
+  group_by(age) %>%
+  summarize(avgFare = mean(fare)) %>%
+  ungroup() %>%
+  ggplot(aes(x=age,y=avgFare)) + geom_point() + geom_smooth()
+
+ggplotly(ageAvgFare)
+
+```
+
+**Q1**: Create a box-plot showing the distribution of fare across genders, and coloring it based on whether a passenger survived or not [Hint: Color will go into the aesthetics of the box plot].
+ 
+```{r}
+
+
+  
+```
+
