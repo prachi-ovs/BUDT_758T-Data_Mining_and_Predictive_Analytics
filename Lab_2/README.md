@@ -15,6 +15,7 @@ Some of the taks performed in this lab:
     2) Creation and interpretation of several Regression models for explaining Weekly Sales
     3) Using test and Validation datasets to determine best model fit
     
-    
-![](Lab_2/CPI_vs_Weekly_Sales.PNG)<br/>
+Data Exploration example: <br/>
+Relationship between Cost per Index and the weekly sales for stores in differnt regions   <br/>
+![](Images/CPI_vs_Weekly_Sales.PNG)<br/>
 
