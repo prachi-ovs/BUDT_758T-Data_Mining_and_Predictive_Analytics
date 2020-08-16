@@ -1,4 +1,4 @@
-# Data Analysis on Framingham Heart Study- To determine the risk factors of heart disease 
+# Data Analysis on Framingham Heart Study- To determine and quantify the risk factors of heart disease 
 
 This lab discusses key operations in R for uploading datasets, practice with tidyverse functions for data wrangling, and data visualizations using healthcare data. </br>
 The key goal of the lab is to determine whether a subset of events (mentioned in the data dictionary) associated with chronic heart disease occurred within 10 years of follow up for patients. </br>
