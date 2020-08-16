@@ -36,3 +36,5 @@ Data Dictionary:
     9) Run a quadratic discriminant analysis (QDA) with all variables
     10) Report the ROC curves for the models on the same chart
     11) Identify which model is better for the given business case/problem
+    
+  The code can be found in the pdf doc named <i> <b> Assignment_3_report </b> </i>
