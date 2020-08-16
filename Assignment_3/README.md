@@ -12,6 +12,8 @@
   
 <b> About the data set: </b> </br>
 The data set used in this assignment is <i><b> carvana.csv </b></i> which contains data from 10,062 car auctions as provided by <b>Carvana</b>. </br>
+Data Dictionary:
+![](Images/data_dictionary.PNG)<br/>
 
 <b> Libraries to download: </b> </br>
 
