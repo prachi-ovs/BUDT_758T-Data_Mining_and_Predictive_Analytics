@@ -18,17 +18,15 @@ In peer-to-peer (P2P) lending platforms, consumers borrow from other consumers. 
     is automated, so the P2P lending model is different from crowdfunding models. 
   
 <b> About the data set: </b> </br>
-The data sets used in this assignment are <i><b> lendingClub.csv </b></i>, <i><b> nyEcon.csv </b></i> and <i><b> retailSales.csv </b></i> </br>
+The data sets used in this assignment are <i><b> lendingClub.csv </b></i> and <i><b> nyEcon.csv </b></i> </br>
 
 <i><b> lendingClub.csv </b></i> contains data for all the loans issued from June 2007 to March 2017. The data is aggregated to the state-month level. </br>
 <i><b> nyEcon.csv </b></i> includes some economic indicators for NY for the same timeframe (from June, 2007 to March, 2017). </br>
-<i><b> retailSales.csv </b></i> includes U.S. retail sales from January, 1992 to February, 2020. </br>
 <i><b> US population </b></i> for each state from the 2010 Census is loaded from the U.S. Census Bureau’s data portal
 
 Data Dictionary:
 ![](Images/lendingClub.PNG)<br/>
 ![](Images/nyEcon.PNG)<br/>
-![](Images/retailSales.PNG)<br/>
 ![](Images/usEcon.PNG)<br/>
 
 <b> Libraries to download: </b> </br>
