@@ -1,0 +1,683 @@
+---
+title: "R Notebook"
+output:
+  html_notebook: default
+  pdf_document:
+    latex_engine: xelatex
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+
+# This chunk shows/hides the code in your final report. When echo = TRUE, the code
+# is shown in the report. When echo = FALSE, the code is hidden from the final report.
+# We would like to see your code, so please leave the setting as is during the course.
+# This chunk will not show up in your reports, so you can safely ignore its existence.
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+The following is your first chunk to start with. Remember, you can add chunks using the menu
+above (Insert -> R) or using the keyboard shortcut Ctrl+Alt+I. A good practice is to use
+different code chunks to answer different questions. You can delete this comment if you like.
+
+Other useful keyboard shortcuts include Alt- for the assignment operator, and Ctrl+Shift+M
+for the pipe operator. You can delete these reminders if you don't want them in your report.
+
+***
+
+Let's first Load all the required libraries
+```{r}
+#setwd("C:/Data Mining") #Don't forget to set your working directory before you start!
+
+library("tidyverse")
+library("fpp3")
+library("plotly")
+library("skimr")
+library("lubridate")
+
+```
+
+
+Creating tsibbles
+```{r}
+month <- as_tibble(yearmonth(seq(as.Date("1991-07-01"), as.Date("2008-06-01"), by = "1 month"))) %>% 
+  rename(month=value)
+tsDia <- read_csv('antidiabetic.csv') %>%
+  bind_cols(month) %>% 
+  select(month, drugSales = value) %>%
+  as_tsibble(index = month)
+
+tsBoston <-
+  boston_marathon %>% 
+  filter(Event == "Men's open division") %>%
+  select(Year, Time) %>%
+  as_tsibble()
+
+tsGas <-us_gasoline
+
+tsEmployment <-
+  us_employment %>% 
+  filter(Title == "Retail Trade", Month >= '1980-01-01') %>%
+  select(Month, Employed)
+
+tsEcon <- us_change %>% 
+  filter(Quarter >= '1980-01-01') %>%
+  select(Quarter, Consumption)
+
+tsAcc <-
+  as_tsibble(USAccDeaths) %>% 
+  rename(numOfAccDeaths = value)
+
+set.seed(333)
+noise <- tsibble(sample = 1:100, Noise = rnorm(100), index = sample)
+
+tsEmployment
+
+```
+
+# Simple prediction (forecasting) tools
+
+## Naive forecast
+
+```{r}
+plotEmpSNaive <-
+  tsEmployment %>%
+  model(SNAIVE(Employed)) %>%
+  forecast(h = "5 years") %>%
+  autoplot(tsEmployment, colour = "#769ECB") + #level = NULL,
+  geom_line(linetype = 'dashed', colour = '#000000') +
+  xlab("Year (monthly data)") + ylab("Number of employed in retail (000)") +
+  ggtitle("U.S. retail employment data")
+plotEmpSNaive
+
+```
+
+## Drift forecast
+
+```{r}
+plotEmpDrift <-
+  tsEmployment %>%
+  model(RW(Employed ~ drift())) %>%
+  forecast(h = "5 years") %>%
+  autoplot(tsEmployment, colour = "#769ECB") + #level = NULL,
+  geom_line(linetype = 'dashed', colour = '#000000') +
+  xlab("Year (monthly data)") + ylab("Number of employed in retail (000)") +
+  ggtitle("U.S. retail employment data")
+plotEmpDrift
+
+```
+
+# Multiple regression for time series
+
+## Regression for antidiabetic drug sales
+
+```{r}
+fitDia <-
+  tsDia %>%
+  model(TSLM(drugSales ~ trend() + season()))
+report(fitDia)
+
+```
+
+## Regression plot with fitted values
+```{r}
+fitDia
+```
+
+```{r}
+tsDia
+```
+
+```{r}
+fitDiaFitted <-
+  augment(fitDia) %>%
+  ggplot(aes(x = month)) +
+  geom_line(aes(y = drugSales, colour = "Data")) +
+  geom_line(aes(y = .fitted, colour = "Fitted")) +
+  xlab("Year") + ylab("Total prescriptions ($ million)") +
+  ggtitle("Antidiabetic drug sales") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y") +
+  guides(colour=guide_legend(title=NULL))
+ggplotly(fitDiaFitted)
+
+```
+
+## Regression plot with predictions
+
+```{r}
+plotDiaPredicted <-
+  tsDia %>%
+  model(TSLM(drugSales ~ trend() + season())) %>%
+  forecast(h = "5 years") %>%
+  autoplot(tsDia, colour = "#769ECB") + #level = NULL,
+  geom_line(linetype = 'dashed', colour = '#000000') +
+  xlab("Year") + ylab("Total prescriptions ($ million)") +
+  ggtitle("Antidiabetic drug sales") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+plotDiaPredicted
+
+```
+
+## Regression with trend and season for U.S. consumption
+
+```{r}
+fitEcon <-
+  tsEcon %>%
+  model(TSLM(Consumption ~ trend() + season()))
+report(fitEcon)
+
+```
+
+## Regression diagnostics (residuals) for the model above
+
+```{r}
+fitEcon %>% gg_tsresiduals()
+
+```
+
+## Regression predictive modeling with trend and season (Train/Test split)
+```{r}
+us_change
+```
+
+```{r}
+plotEconPredicted <-
+  us_change %>%
+  filter(Quarter < '2011-01-01') %>%
+  model(TSLM(Consumption ~ trend() + season())) %>%
+  forecast(new_data = us_change %>% filter(Quarter >= '2011-01-01')) %>%
+  autoplot(us_change, colour = "#960A0A") +
+  geom_line(colour = '#535353') +
+  xlab("Year (quarterly data)") + ylab("Percentage changes in personal consumption") +
+  ggtitle("U.S. personal consumption data")
+plotEconPredicted
+
+```
+
+## Additional features/predictors for U.S. consumption
+
+```{r}
+consumptionFullData <-
+  us_change %>%
+  gather("Measure", "Change", Consumption, Income, Savings, Unemployment) %>%
+  ggplot(aes(x = Quarter, y = Change, colour = Measure)) +
+  geom_line() +
+  facet_grid(vars(Measure), scales = "free_y") +
+  ylab("") + xlab("Year") +
+  guides(colour="none") +
+  theme(legend.position='none')
+ggplotly(consumptionFullData)
+
+```
+
+## Multiple regression for U.S. consumption
+
+```{r}
+fitEconOthers <-
+  us_change %>%
+  model(TSLM(Consumption ~ Income + Savings + Unemployment))
+report(fitEconOthers)
+
+```
+
+## Residuals for the model above
+
+```{r}
+fitEconOthers %>% gg_tsresiduals()
+
+```
+
+## Regression predictive modeling with other features/predictors (Train/Test split)
+
+```{r}
+plotEconOthersPredicted <-
+  us_change %>%
+  filter(Quarter < '2011-01-01') %>%
+  model(TSLM(Consumption ~ Income + Savings + Unemployment)) %>%
+  forecast(new_data = us_change %>% filter(Quarter >= '2011-01-01')) %>%
+  autoplot(us_change, colour = "#960A0A") + #level = NULL,
+  geom_line(colour = '#535353') +
+  xlab("Year (quarterly data)") + ylab("Percentage changes in personal consumption") +
+  ggtitle("U.S. personal consumption data")
+plotEconOthersPredicted
+
+```
+
+## Regression with all (trend, season, and other features/variables)
+
+```{r}
+fitEconAll <-
+  us_change %>%
+  model(TSLM(Consumption ~ trend() + season() + Income + Savings + Unemployment))
+report(fitEconAll)
+
+```
+
+## Residuals for the model above
+
+```{r}
+fitEconAll %>% gg_tsresiduals()
+
+```
+
+## Regression predictive modeling with trend, season, and additional features (Train/Test split)
+
+```{r}
+plotEconAllPredicted <-
+  us_change %>%
+  filter(Quarter < '2011-01-01') %>%
+  model(TSLM(Consumption ~ trend() + season() + Income + Savings + Unemployment)) %>%
+  forecast(new_data = us_change %>% filter(Quarter >= '2011-01-01')) %>%
+  autoplot(us_change, colour = "#960A0A") + #level = NULL,
+  geom_line(colour = '#535353') +
+  xlab("Year (quarterly data)") + ylab("Percentage changes in personal consumption") +
+  ggtitle("U.S. personal consumption data")
+plotEconAllPredicted
+
+```
+
+## Split for good
+
+```{r}
+set.seed(333)
+tsEconTrain <- us_change %>% filter(Quarter < '2011-01-01')
+tsEconTest <- us_change %>% filter(Quarter >= '2011-01-01')
+
+```
+
+## Several models trained and run on test data for predictions to be evaluated/compared
+
+```{r}
+tsEconFitAll <-
+  tsEconTrain %>%
+  model(
+    model1TimeTrendAndSeason = TSLM(Consumption ~ trend() + season()),
+    model2TimeTrend = TSLM(Consumption ~ trend()),
+    model3OtherFeatures = TSLM(Consumption ~ Income + Savings + Unemployment),
+    model4TimeTrendAndOthers = TSLM(Consumption ~ trend() + Income + Savings + Unemployment),
+    model5TimeTrendAndOthersKnot = TSLM(Consumption ~ trend(knots = c(1980)) + Income + Savings + Unemployment)
+  )
+
+tsEconPredictAll <-
+  tsEconFitAll %>%
+  forecast(new_data = tsEconTest)
+
+tsEconPredictAll
+
+accuracy(tsEconPredictAll, tsEconTest)
+
+```
+
+# ARIMA models
+
+## Revisiting ACF for antidiabetic drug sales
+
+```{r}
+plotDiaACF <-
+  tsDia %>%
+  ACF(drugSales, lag_max = 48) %>%
+  autoplot() +  ggtitle("Autocorrelation function (ACF) plot for the antidiabetic drug sales data")
+plotDiaACF
+
+```
+
+## ACF for antidiabetic drug sales after differencing
+
+```{r}
+plotDiaDiffACF <-
+  tsDia %>%
+  mutate(diffdrugSales = difference(drugSales)) %>%
+  ACF(diffdrugSales, lag_max = 48) %>%
+  autoplot() +  ggtitle("Autocorrelation function (ACF) plot for the antidiabetic drug sales data")
+plotDiaDiffACF
+
+```
+
+## Have we done it right?
+
+```{r}
+tsDia %>%
+  features(drugSales, unitroot_ndiffs)
+
+```
+
+## Are you sure?
+
+```{r}
+tsDia %>%
+  features(difference(drugSales), unitroot_ndiffs)
+
+```
+
+## What about seasons?
+
+```{r}
+tsDia %>%
+  features(difference(drugSales), unitroot_nsdiffs)
+
+```
+
+## Are we good now?
+
+```{r}
+plotDiaSeasonalDiffACF <-
+  tsDia %>%
+  mutate(diffDrugSalesthenDiffSeason = difference(difference(drugSales), 12)) %>%
+  PACF(diffDrugSalesthenDiffSeason, lag_max = 48) %>%
+  autoplot() +  ggtitle("Autocorrelation function (ACF) plot for the antidiabetic drug sales data")
+plotDiaSeasonalDiffACF
+
+```
+
+## Our friend KPSS says so:
+
+```{r}
+tsDia %>%
+  mutate(diffDrugSalesthenDiffSeason = difference(difference(drugSales), 12)) %>%
+  features(diffDrugSalesthenDiffSeason, unitroot_kpss)
+
+```
+
+## What if we transformed?
+
+```{r}
+plotDiaSeasonalDiffACF <-
+  tsDia %>%
+  mutate(logDrugSalesSeasonthenDiff = difference(difference(log(drugSales)), 12)) %>%
+  PACF(logDrugSalesSeasonthenDiff, lag_max = 48) %>%
+  autoplot() +  ggtitle("Autocorrelation function (ACF) plot for the antidiabetic drug sales data")
+plotDiaSeasonalDiffACF
+
+```
+
+## Are we still friends with KPSS?
+
+```{r}
+tsDia %>%
+  mutate(logDrugSalesSeasonthenDiff = difference(difference(log(drugSales)), 12)) %>%
+  features(logDrugSalesSeasonthenDiff, unitroot_kpss)
+
+```
+
+
+Rule of thumb not to overfit (Don't believe rules of thumb):
+- If the correlation at the seasonal period is positive, add a SAR term
+- If negative, add a SMA term
+- Avoid mixing SAR and SMA in the same model
+- Avoid using more than one of either
+
+## ARIMA ARIMA!
+
+```{r}
+fitDiaARIMA <-
+  tsDia %>%
+  model(fitArima = ARIMA(drugSales ~ PDQ(0,1,1),
+              stepwise = FALSE, approximation = FALSE))
+report(fitDiaARIMA)
+
+```
+
+## Cross-validation in time series using ARIMA
+
+### DO NOT RUN THIS!
+
+```{r}
+# set.seed(333)
+# tsDiaCV <-
+#   tsDia %>%
+#   slice(1:(n()-12)) %>%
+#   stretch_tsibble(.init = 12) %>%
+#   model(ARIMA(drugSales)) %>% # ~ pdq(4,1,1) + PDQ(0,1,1)
+#   forecast(h = 12) #%>%
+#   #accuracy(tsDia)
+
+```
+
+### DO NOT RUN THIS!
+
+```{r}
+# tsDiaCV <- 
+#   tsDiaCV %>%
+#   group_by(.id) %>%
+#   mutate(h = row_number()) %>%
+#   ungroup()
+
+# saveRDS(tsDiaCV, 'tsDiaCV.rds')
+
+```
+
+### DO NOT RUN THIS!
+
+```{r}
+tsDiaCV <- readRDS('tsDiaCV.rds')
+
+plottsDiaCV <- 
+  tsDiaCV %>% 
+  accuracy(tsDia, by = 'h') %>% 
+  ggplot(aes(x = h, y = RMSE)) + geom_point() +
+        scale_x_continuous(name = " ", breaks = c(1:12))
+ggplotly(plottsDiaCV)
+
+```
+
+# Training models and making predictions
+# [SLIDES LEFT TO THURSDAY]
+
+## Remember U.S. consumption data
+
+```{r}
+plotEconDecomposed <- 
+  tsEcon %>%
+  model(STL(Consumption ~ trend() + season(window='periodic'), robust = TRUE)) %>% 
+  components() %>%
+  autoplot() +
+  xlab("Year (quarterly data)") + ylab("Percentage changes in personal consumption") +
+  ggtitle("Seasonal and Trend decomposition using Loess (STL) for U.S. consumption data") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+plotEconDecomposed
+
+```
+
+## ACF for the U.S. consumption
+
+```{r}
+plotEconACF <-
+  tsEcon %>%
+  ACF(Consumption, lag_max = 48) %>%
+  autoplot() +  ggtitle("Autocorrelation function (ACF) plot for the U.S. personal consumption data")
+plotEconACF
+
+```
+
+## ACF for the U.S. consumption after differencing
+
+```{r}
+plotEconDiffACF <-
+  tsEcon %>%
+  mutate(diffConsumption = difference(Consumption)) %>%
+  ACF(diffConsumption, lag_max = 48) %>%
+  autoplot() +  ggtitle("Autocorrelation function (ACF) plot for the U.S. personal consumption data")
+plotEconDiffACF
+
+```
+
+## Are we in line with the unit root test?
+
+```{r}
+tsEcon %>%
+  features(Consumption, unitroot_ndiffs)
+
+tsEcon %>%
+  features(Consumption, unitroot_nsdiffs)
+
+```
+
+## What about the KPSS test?
+
+```{r}
+tsEcon %>%
+  features(Consumption, unitroot_kpss)
+
+tsEcon %>%
+  features(difference(Consumption), unitroot_kpss)
+
+```
+
+## ARIMA model for the U.S. consumption
+
+```{r}
+fitEconARIMA <-
+  tsEcon %>%
+  model(fitArima = ARIMA(Consumption ~ PDQ(0,0,0), #pdq(3,0,0) + 
+              stepwise = FALSE, approximation = FALSE)
+  )
+report(fitEconARIMA)
+
+```
+
+## Residual diagnostics and Ljung-Box test for the independence of residuals
+
+```{r}
+fitEconARIMA %>% gg_tsresiduals()
+
+fitEconARIMA %>% 
+  augment() %>%
+  features(.resid, ljung_box, 
+           lag = 8, dof = 4)
+
+```
+
+## ARIMA regression with the additional features/predictors included
+
+```{r}
+fitEconARIMAOthers <-
+  us_change %>%
+  model(fitArima = ARIMA(Consumption ~ pdq(3,0,0) + PDQ(0,0,0) + Income + Savings + Unemployment))
+report(fitEconARIMAOthers)
+
+```
+
+## ARIMA regression with the additional features/predictors included (again)
+
+```{r}
+fitEconARIMAOthersGridAgain <-
+  us_change %>%
+  model(fitArima = ARIMA(Consumption ~ PDQ(0,0,0) + Income + Savings + Unemployment, stepwise = FALSE, approximation = FALSE)) #pdq(2,1,4) + 
+report(fitEconARIMAOthersGridAgain)
+
+```
+
+## What about the p-values?
+
+```{r}
+# p-value for Income
+# t-statistic for Income is 0.7503/0.0388 = 19.33763
+2*pt(-abs(0.7503/0.0388), nrow(tsEcon)-9)
+
+# p-values for Savings and Unemployment:
+2*pt(-abs(-0.0560/0.0029), nrow(tsEcon)-9)
+2*pt(-abs(-0.2737/0.0676), nrow(tsEcon)-9)
+
+```
+
+## Comparing residual diagnostics tests across the ARIMA models
+
+```{r}
+fitEconARIMA %>% gg_tsresiduals()
+fitEconARIMAOthers %>% gg_tsresiduals()
+fitEconARIMAOthersGridAgain %>% gg_tsresiduals()
+
+```
+
+## More models trained and run on test data for predictions to be evaluated/compared
+
+```{r}
+tsEconFitAll <-
+  tsEconTrain %>%
+  model(
+    model1TimeTrendAndSeason = TSLM(Consumption ~ trend() + season()),
+    model2TimeTrend = TSLM(Consumption ~ trend()),
+    model3OtherFeatures = TSLM(Consumption ~ Income + Savings + Unemployment),
+    model4TimeTrendAndOthers = TSLM(Consumption ~ trend() + Income + Savings + Unemployment),
+    model5TimeTrendAndOthersKnot = TSLM(Consumption ~ trend(knots = c(1980)) + Income + Savings + Unemployment),
+    model6ARIMABase300 = ARIMA(Consumption ~ pdq(3,0,0) + PDQ(0,0,0)),
+    model7ARIMAOthers300 = ARIMA(Consumption ~ pdq(3,0,0) + PDQ(0,0,0) + Income + Savings + Unemployment),
+    model8ARIMAOthers214 = ARIMA(Consumption ~ 1 + pdq(2,1,4) + PDQ(0,0,0) + Income + Savings + Unemployment)#,
+    #model8ARIMAOthers510 = ARIMA(Consumption ~ 1 + pdq(5,1,0) + PDQ(0,0,0) + Income + Savings + Unemployment)
+  )
+
+tsEconPredictAll <-
+  tsEconFitAll %>%
+  forecast(new_data = tsEconTest)
+
+accuracy(tsEconPredictAll, tsEconTest)
+
+```
+
+## Regression and ARIMA predictive modeling compared (Train/Test split)
+
+```{r}
+plotEconAllPredicted #Model #5
+
+plotEconAllPredictedARIMA <-
+  us_change %>%
+  filter(Quarter < '2011-01-01') %>%
+  model(ARIMA(Consumption ~ 1 + pdq(2,1,4) + PDQ(0,0,0) + Income + Savings + Unemployment)) %>%
+  forecast(new_data = us_change %>% filter(Quarter >= '2011-01-01')) %>%
+  autoplot(us_change, colour = "#960A0A") + #level = NULL,
+  geom_line(colour = '#535353') +
+  xlab("Year (quarterly data)") + ylab("Percentage changes in personal consumption") +
+  ggtitle("U.S. personal consumption data")
+plotEconAllPredictedARIMA
+
+```
+
+# Anomaly detection in time series using STL and IQR
+```{r}
+date(tsDia$month)
+
+tsDia
+```
+```{r}
+anomalyDia$month
+```
+
+
+```{r}
+library(anomalize)
+
+anomalyDia <- 
+  tsDia %>%
+  mutate(month = date(month)) %>%
+  time_decompose(drugSales, method = "stl") %>%
+  anomalize(remainder, method = "iqr") %>%
+  plot_anomalies() +
+  labs(title = "Anomaly detection for the antidiabetic drug sales data") +
+  xlab("Year") + ylab("Total prescriptions ($ million)") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+
+anomalyDia
+
+```
+
+# Anomaly detection in time series using STL and IQR in the decomposition plot
+
+```{r}
+anomalyDiaDecompose <- 
+  tsDia %>%
+  mutate(month = date(month)) %>%
+  time_decompose(drugSales, method = "stl") %>%
+  anomalize(remainder, method = "iqr") %>%
+  plot_anomaly_decomposition() +
+  labs(title = "Anomaly detection for the antidiabetic drug sales data") +
+  xlab("Year") + ylab("Total prescriptions ($ million)") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+
+anomalyDiaDecompose
+
+```
+
+
