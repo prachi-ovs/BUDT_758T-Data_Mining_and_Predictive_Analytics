@@ -5,7 +5,6 @@
 <i><b> retailSales.csv </b></i> includes U.S. retail sales from January, 1992 to February, 2020. </br>
 Data Dictionary:
 ![](Images/retailSales.PNG)<br/>
-
 <b> Libraries to download: </b> </br>
 
     tidyverse
