@@ -3,6 +3,9 @@
 <b> About the data set: </b> </br>
 The data set used in this assignment is <i><b> Gapminder </b></i> dataset, which is available as a library in R. </br>
 
+Data Dictionary: </br>
+![](Images/data_dictionary.PNG)
+
 <b> Steps in the notebook:</b> </br>
 
     1. Data Exploration
